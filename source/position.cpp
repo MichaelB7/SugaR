@@ -36,10 +36,6 @@
 
 using std::string;
 
-namespace PSQT {
-  extern Score psq[PIECE_NB][SQUARE_NB];
-}
-
 namespace Zobrist {
 
   Key psq[PIECE_NB][SQUARE_NB];
@@ -202,7 +198,9 @@ void Position::init() {
 Position& Position::set(const string& fenStr, bool isChess960, StateInfo* si, Thread* th) {
 /*
    A FEN string defines a particular position using only the ASCII character set.
+
    A FEN string contains six fields separated by a space. The fields are:
+
    1) Piece placement (from white's perspective). Each rank is described, starting
       with rank 8 and ending with rank 1. Within each rank, the contents of each
       square are described from file A through file H. Following the Standard
@@ -211,19 +209,24 @@ Position& Position::set(const string& fenStr, bool isChess960, StateInfo* si, Th
       letters ("PNBRQK") whilst Black uses lowercase ("pnbrqk"). Blank squares are
       noted using digits 1 through 8 (the number of blank squares), and "/"
       separates ranks.
+
    2) Active color. "w" means white moves next, "b" means black.
+
    3) Castling availability. If neither side can castle, this is "-". Otherwise,
       this has one or more letters: "K" (White can castle kingside), "Q" (White
       can castle queenside), "k" (Black can castle kingside), and/or "q" (Black
       can castle queenside).
+
    4) En passant target square (in algebraic notation). If there's no en passant
       target square, this is "-". If a pawn has just made a 2-square move, this
       is the position "behind" the pawn. This is recorded only if there is a pawn
       in position to make an en passant capture, and if there really is a pawn
       that might have advanced two squares.
+
    5) Halfmove clock. This is the number of halfmoves since the last pawn advance
       or capture. This is used to determine if a draw can be claimed under the
       fifty-move rule.
+
    6) Fullmove number. The number of the full move. It starts at 1, and is
       incremented after Black's move.
 */
@@ -374,7 +377,6 @@ void Position::set_state(StateInfo* si) const {
   si->key = si->materialKey = 0;
   si->pawnKey = Zobrist::noPawns;
   si->nonPawnMaterial[WHITE] = si->nonPawnMaterial[BLACK] = VALUE_ZERO;
-  si->psq = SCORE_ZERO;
   si->checkersBB = attackers_to(square<KING>(sideToMove)) & pieces(~sideToMove);
 
   set_check_info(si);
@@ -384,7 +386,6 @@ void Position::set_state(StateInfo* si) const {
       Square s = pop_lsb(&b);
       Piece pc = piece_on(s);
       si->key ^= Zobrist::psq[pc][s];
-      si->psq += PSQT::psq[pc][s];
   }
 
   if (si->epSquare != SQ_NONE)
@@ -745,7 +746,6 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       Square rfrom, rto;
       do_castling<true>(us, from, to, rfrom, rto);
 
-      st->psq += PSQT::psq[captured][rto] - PSQT::psq[captured][rfrom];
       k ^= Zobrist::psq[captured][rfrom] ^ Zobrist::psq[captured][rto];
       captured = NO_PIECE;
   }
@@ -783,9 +783,6 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       k ^= Zobrist::psq[captured][capsq];
       st->materialKey ^= Zobrist::psq[captured][pieceCount[captured]];
       prefetch(thisThread->materialTable[st->materialKey]);
-
-      // Update incremental scores
-      st->psq -= PSQT::psq[captured][capsq];
 
       // Reset rule 50 counter
       st->rule50 = 0;
@@ -840,9 +837,6 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
           st->materialKey ^=  Zobrist::psq[promotion][pieceCount[promotion]-1]
                             ^ Zobrist::psq[pc][pieceCount[pc]];
 
-          // Update incremental score
-          st->psq += PSQT::psq[promotion][to] - PSQT::psq[pc][to];
-
           // Update material
           st->nonPawnMaterial[us] += PieceValue[MG][promotion];
       }
@@ -854,9 +848,6 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       // Reset rule 50 draw counter
       st->rule50 = 0;
   }
-
-  // Update incremental scores
-  st->psq += PSQT::psq[pc][to] - PSQT::psq[pc][from];
 
   // Set capture piece
   st->capturedPiece = captured;
@@ -1186,14 +1177,15 @@ bool Position::has_game_cycle(int ply) const {
           || (j = H2(moveKey), cuckoo[j] == moveKey))
       {
           Move move = cuckooMove[j];
-          Square from = from_sq(move);
-          Square to = to_sq(move);
+          Square s1 = from_sq(move);
+          Square s2 = to_sq(move);
 
-          if (!(between_bb(from, to) & pieces()))
+          if (!(between_bb(s1, s2) & pieces()))
           {
-              // Take care to reverse the move in the no-progress case (opponent to move)
-              if (empty(from))
-                  move = make_move(to, from);
+              // In the cuckoo table, both moves Rc1c5 and Rc5c1 are stored in the same
+              // location. We select the legal one by reversing the move variable if necessary.
+              if (empty(s1))
+                  move = make_move(s2, s1);
 
               if (ply > i)
                   return true;

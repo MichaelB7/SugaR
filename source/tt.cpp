@@ -607,3 +607,4 @@ int TranspositionTable::hashfull() const {
   }
   return cnt;
 }
+

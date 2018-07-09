@@ -43,7 +43,7 @@ namespace UCI {
 /// 'On change' actions, triggered by an option's value change
 void on_clear_hash(const Option&) { Search::clear(); }
 void on_hash_size(const Option& o) { TT.resize(o); }
-void on_large_pages(const Option& o) { TT.resize(o); }  // warning is ok, will be removed
+void on_large_pages(const Option& o) { TT.resize(0); }  // warning is ok, will be removed
 void on_logger(const Option& o) { start_logger(o); }
 void on_threads(const Option& o) { Threads.set(o); }
 void on_tb_path(const Option& o) { Tablebases::init(o); }
@@ -73,15 +73,15 @@ void init(OptionsMap& o) {
   // at most 2^32 clusters.
   constexpr int MaxHashMB = Is64Bit ? 131072 : 2048;
 
-  unsigned int n = std::thread::hardware_concurrency();
+  unsigned n = std::thread::hardware_concurrency();
   if (!n) n = 1;
   
   o["Debug Log File"]        << Option("", on_logger);
-  o["Contempt"]              << Option(12, -100, 100);
+  o["Contempt"]              << Option(21, -100, 100);
   o["Analysis Contempt"]     << Option("Both var Off var White var Black var Both", "Both");
-  o["Large Pages"]           << Option(true, on_large_pages);
-  o["Threads"]               << Option(n, 1, 512, on_threads);
-  o["Hash"]                  << Option(128, 1, MaxHashMB, on_hash_size);
+  o["Large Pages"]           << Option(false, on_large_pages);
+  o["Threads"]               << Option(n, unsigned(1), unsigned(512), on_threads);
+  o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
   o["Clear Hash"]            << Option(on_clear_hash);
   o["Ponder"]                << Option(false);
   o["MultiPV"]               << Option(1, 1, 500);
@@ -95,7 +95,7 @@ void init(OptionsMap& o) {
   o["Junior King"]					<< Option(true);
   o["Junior Threats"]				<< Option(true);
   o["Junior Passed"]				<< Option(true);
-  o["Junior Space"]				<< Option(true);
+  o["Junior Space"]				    << Option(true);
   o["Junior Initiative"]			<< Option(true);
   o["Shashin Strategy"]				<< Option(true);
   o["NeverClearHash"]           << Option(false);
@@ -109,13 +109,13 @@ void init(OptionsMap& o) {
   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
   o["Syzygy50MoveRule"]      << Option(true);
   o["SyzygyProbeLimit"]      << Option(6, 0, 6);
-  o["Correspondence Chess Analyzer"]     << Option();
-  o["Analysis Mode"]            << Option(0, 0,  8);
+  o["Tactical Mode"]            << Option(0, 0,  8);
   o["NullMove"]                 << Option(true);
   o["Polyglot Book management"] << Option();
   o["OwnBook"]                  << Option(false);
   o["Book File"]                << Option("book.bin");
   o["Cerebellum Book Library"]  << Option();
+  o["Book_Enabled"]          << Option(true);
   o["BookFile"]              << Option("Cerebellum_Light_Poly.bin", on_book_file);
   o["BestBookMove"]          << Option(true, on_best_book_move);
   o["BookDepth"]             << Option(255, 1, 255, on_book_depth);   
@@ -158,8 +158,8 @@ Option::Option(bool v, OnChange f) : type("check"), min(0), max(0), on_change(f)
 Option::Option(OnChange f) : type("button"), min(0), max(0), on_change(f)
 {}
 
-Option::Option(int v, int minv, int maxv, OnChange f) : type("spin"), min(minv), max(maxv), on_change(f)
-{ defaultValue = currentValue = std::to_string(v); }
+//Option::Option(int v, int minv, int maxv, OnChange f) : type("spin"), min(minv), max(maxv), on_change(f)
+//{ defaultValue = currentValue = std::to_string(v); }
 
 Option::Option(const char* v, const char* cur, OnChange f) : type("combo"), min(0), max(0), on_change(f)
 { defaultValue = v; currentValue = cur; }
