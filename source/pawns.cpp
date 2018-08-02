@@ -34,23 +34,22 @@ namespace {
   #define S(mg, eg) make_score(mg, eg)
 
   // Pawn penalties
-  constexpr Score Isolated = S( 4, 20);
-  constexpr Score Backward = S(21, 22);
-  constexpr Score Doubled  = S(12, 54);
+ constexpr Score Isolated = S( 5, 15);
+ constexpr Score Backward = S( 9, 24);
+ constexpr Score Doubled  = S(11, 56);
 
   
 #ifdef PAWN_SCORES
 	//  Pawn Scores Isolated in Rank 3
-	constexpr Score PawnScoresIsolatedRank3 = S(-5, 0);
+	constexpr Score PawnScoresIsolatedRank3 = S(- 5, + 0);
 
 	//  Pawn Scores Connected Passed
 	constexpr Score PawnScoresConnectedPassed = S(-16, +16);
-	constexpr Score KingSafetyCompensationPawnScoresConnectedPassed = S(-5, 0);
+	constexpr Score KingSafetyCompensationPawnScoresConnectedPassed = S(- 5, + 0);
 	//	Protected Passed Pawn
-	constexpr Score ProtectedPassedPawn = S(+5, +5);
+	constexpr Score ProtectedPassedPawn = S(+ 5, + 5);
+	constexpr Score RemotePassedPawn = S(+ 4, + 4);
 
-	//	Pawns Center 
-	constexpr Score PawnStormCompensationPawnScoresPawnsCenterPassed = S(-14, 0);	//	Exact numbers to be determined
 #endif
 
   // Connected pawn bonus by opposed, phalanx, #support and rank
@@ -59,25 +58,25 @@ namespace {
   // Strength of pawn shelter for our king by [distance from edge][rank].
   // RANK_1 = 0 is used for files where we have no pawn, or pawn is behind our king.
   constexpr Value ShelterStrength[int(FILE_NB) / 2][RANK_NB] = {
-    { V( 16), V(82), V( 83), V( 47), V( 19), V( 44), V(  4) },
-    { V(-51), V(56), V( 33), V(-58), V(-57), V(-50), V(-39) },
-    { V(-20), V(71), V( 16), V(-10), V( 13), V( 19), V(-30) },
-    { V(-29), V(12), V(-21), V(-40), V(-15), V(-77), V(-91) }
+    { V( -3), V( 81), V( 93), V( 58), V( 39), V( 18), V(  25) },
+    { V(-40), V( 61), V( 35), V(-49), V(-29), V(-11), V( -63) },
+    { V( -7), V( 75), V( 23), V( -2), V( 32), V(  3), V( -45) },
+    { V(-36), V(-13), V(-29), V(-52), V(-48), V(-67), V(-166) }
   };
 
   // Danger of enemy pawns moving toward our king by [distance from edge][rank].
   // RANK_1 = 0 is used for files where the enemy has no pawn, or their pawn
   // is behind our king.
   constexpr Value UnblockedStorm[int(FILE_NB) / 2][RANK_NB] = {
-    { V(54), V( 48), V( 99), V(91), V(42), V( 32), V( 31) },
-    { V(34), V( 27), V(105), V(38), V(32), V(-19), V(  3) },
-    { V(-4), V( 28), V( 87), V(18), V(-3), V(-14), V(-11) },
-    { V(-5), V( 22), V( 75), V(14), V( 2), V( -5), V(-19) }
+    { V( 89), V(107), V(123), V(93), V(57), V( 45), V( 51) },
+    { V( 44), V(-18), V(123), V(46), V(39), V( -7), V( 23) },
+    { V(  4), V( 52), V(162), V(37), V( 7), V(-14), V( -2) },
+    { V(-10), V(-14), V( 90), V(15), V( 2), V( -7), V(-16) }
   };
 
   // Danger of blocked enemy pawns storming our king, by rank
   constexpr Value BlockedStorm[RANK_NB] =
-    { V(0), V(0), V( 81), V(-9), V(-5), V(-1), V(26) };
+    { V(0), V(0), V(66), V(6), V(5), V(1), V(15) };
 
   #undef S
   #undef V
@@ -167,6 +166,7 @@ namespace {
 
 			else if (backward)
 				score -= Backward, e->weakUnopposed[Us] += !opposed;
+	 
 
 			if (doubled && !supported)
 				score -= Doubled;
@@ -207,10 +207,6 @@ namespace {
 				{
 					rpp = Rank(rpp + 1);
 				}
-				else
-				{
-					assert(false);
-				}
 			}
 
 			if (rpp != rp1)
@@ -228,6 +224,16 @@ namespace {
 				if (passed1 && protected_passed_pawn)
 				{
 					score += ProtectedPassedPawn;
+				}
+			}
+
+			if (passed1)
+			{
+				bool passed_in_flang = (f < FILE_C) || (f > FILE_F);
+
+				if (passed_in_flang)
+				{
+					score += RemotePassedPawn;
 				}
 			}
 #endif
@@ -257,15 +263,6 @@ namespace {
 			}
 
 			bool passed1 = bool(passed_pawn_mask(Us, s) & ourPawns);
-
-			if (passed1)
-			{
-				File f1 = f;
-				if (f1 == FILE_D || f1 == FILE_E)
-				{
-					score += PawnStormCompensationPawnScoresPawnsCenterPassed;
-				}
-			}
 
 			if (f0 != f)
 			{
@@ -379,7 +376,7 @@ Value Entry::evaluate_shelter(const Position& pos, Square ksq) {
   constexpr Direction Down = (Us == WHITE ? SOUTH : NORTH);
   constexpr Bitboard  BlockRanks = (Us == WHITE ? Rank1BB | Rank2BB : Rank8BB | Rank7BB);
 
-  Bitboard b = pos.pieces(PAWN) & (forward_ranks_bb(Us, ksq) | rank_bb(ksq));
+  Bitboard b = pos.pieces(PAWN) & ~forward_ranks_bb(Them, ksq);
   Bitboard ourPawns = b & pos.pieces(Us);
   Bitboard theirPawns = b & pos.pieces(Them);
 

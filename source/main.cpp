@@ -36,7 +36,7 @@
 #include "polybook.h"
 
 namespace PSQT {
-	void init();
+  void init();
 }
 
 int main(int argc, char* argv[]) {
@@ -81,11 +81,12 @@ int main(int argc, char* argv[]) {
   Bitboards::init();
   Position::init();
   Bitbases::init();
-  Search::init();
+
+  Search::init(Options["Clear Search"]);
   Pawns::init();
+  polybook.init(Options["BookFile"]);
   Tablebases::init(Options["SyzygyPath"]); // After Bitboards are set
   Threads.set(Options["Threads"]);
-  polybook.init(Options["BookFile"]);
   Search::clear(); // After threads are up
 
   UCI::loop(argc, argv);

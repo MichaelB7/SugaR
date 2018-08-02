@@ -41,7 +41,7 @@ constexpr int CounterMovePruneThreshold = 0;
 
 struct Stack {
   Move* pv;
-  PieceToHistory* contHistory;
+  PieceToHistory* continuationHistory;
   int ply;
   Move currentMove;
   Move excludedMove;
@@ -100,7 +100,7 @@ struct LimitsType {
 
 extern LimitsType Limits;
 
-void init();
+void init(bool OptioncleanSearch);
 void clear();
 
 } // namespace Search
